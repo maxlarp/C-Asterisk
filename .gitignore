@@ -6,8 +6,3 @@ cmake_install.cmake
 
 # Compiled binaries (listed per-path so real Makefiles are never caught)
 viewer/main
-bmpconverter/main
-
-# Test data and generated output
-lol.bmp
-victim
