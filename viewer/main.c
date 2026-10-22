@@ -11,7 +11,7 @@
 #include "../headers/format.h"
 
 // Read 4 next bytes and turn them into an int, Little Endian
-int32_t read_next_int_little_endian(FILE *file) {
+int32_t read_int_LE(FILE *file) {
     uint8_t bytes[4];
 
     if (fread(bytes, sizeof(uint8_t), 4, file) != 4) {
@@ -35,7 +35,6 @@ static inline void read_variable_length_quantity_int(const uint8_t **p, uint32_t
     uint8_t byte;
 
     do {
-        // TODO: remove this debug
         byte = *(*p)++;
 
         *out_number |= ((uint32_t)(byte & 0x7F) << shift);
@@ -51,13 +50,22 @@ bool metadata_from_file(FILE *file, uint32_t *out_height, uint32_t *out_width) {
         return false;
     }
     if (fgetc(file) == FMT_TAG_RESOLUTION) {
-        *out_width = read_next_int_little_endian(file);
-        *out_height = read_next_int_little_endian(file);
+        *out_width = read_int_LE(file);
+        *out_height = read_int_LE(file);
     } else {
         puts(RED "No resolution found!" RESET);
         return false;
     }
     return true;
+}
+
+static inline uint32_t pack_rgb(uint8_t r, uint8_t g, uint8_t b) {
+    return ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
+}
+
+static inline uint32_t read_RLE(const uint8_t **p, uint8_t *r, uint8_t *g, uint8_t *b, uint32_t *length) {
+    read_rgb(p, r, g, b);
+    read_variable_length_quantity_int(p, length);
 }
 
 void populate_buffer(FILE *file, uint32_t *buffer) {
@@ -92,32 +100,28 @@ void populate_buffer(FILE *file, uint32_t *buffer) {
                 uint8_t r, g, b;
                 read_rgb(&p, &r,&g, &b);
 
-                buffer[pixel++] = (r << 16) | (g << 8) | b;
+                buffer[pixel++] = pack_rgb(r, g, b);
             }
         }
         else if (tag == FMT_TAG_RLE) {
             uint8_t r, g, b;
-            read_rgb(&p, &r,&g, &b);
-
-            uint32_t length = 0;
-            read_variable_length_quantity_int(&p, &length);
+            uint32_t length;
+            read_RLE(&p, &r, &g, &b, &length);
 
             uint32_t counter = 0;
             while (counter != length) {
-                buffer[pixel+counter] = (r << 16) | (g << 8) | b;
+                buffer[pixel+counter] = pack_rgb(r, g, b);
                 counter++;
             }
         }
         else if (tag == FMT_TAG_ADVRLE) {
             uint8_t r, g, b;
-            read_rgb(&p, &r, &g, &b);
-
-            uint32_t length = 0;
-            read_variable_length_quantity_int(&p, &length);
+            uint32_t length;
+            read_RLE(&p, &r, &g, &b, &length);
 
             uint32_t counter = 0;
             while (counter != length) {
-                buffer[pixel++] = (r << 16) | (g << 8) | b;
+                buffer[pixel++] = pack_rgb(r, g, b);
                 counter++;
             }
         }
