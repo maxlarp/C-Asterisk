@@ -20,7 +20,7 @@ int32_t read_next_int_little_endian(FILE *fp) {
         (bytes[2] << 16) |
         (bytes[1] << 8) |
         (bytes[0]));
-};
+}
 
 bool metadata_from_file(FILE *file, uint32_t *out_height, uint32_t *out_width) {
     char buf[FMT_MAGIC_LEN];
@@ -37,7 +37,7 @@ bool metadata_from_file(FILE *file, uint32_t *out_height, uint32_t *out_width) {
     }
     printf("Detected resolution!\nWidth: %d, Height: %d\n", *out_width, *out_height);
     return true;
-};
+}
 
 void populate_buffer(FILE *file, uint32_t *buffer) {
     char c;

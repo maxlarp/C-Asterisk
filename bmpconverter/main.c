@@ -1,11 +1,12 @@
 #include <stdint.h>
 #include <stdio.h>
+#include "../headers/tcolors.h"
 #include "../headers/format.h"
 #include "readbmp.h"
 
 int main(int argc, char* argv[]) {
     if (argc < 3) {
-        puts("Expected two arguments");
+        puts(RED "Expected two or more arguments!" RESET);
         return 1;
     }
 
@@ -14,7 +15,7 @@ int main(int argc, char* argv[]) {
 
     uint8_t* rgb_array = bmp_to_array(argv[1], &width, &height);
 
-    printf("Detected resolution~!\n%dx%d\n", width, height);
+    printf(RED "Detected resolution~!\n%dx%d\n" RESET, width, height);
     FILE* file = fopen(argv[2], "wb");
 
     if (fwrite(FMT_MAGIC, sizeof(char), FMT_MAGIC_LEN, file) < FMT_MAGIC_LEN) goto error_cleanup;
@@ -31,7 +32,7 @@ int main(int argc, char* argv[]) {
     return 0;
 
 error_cleanup:
-    perror("Failed writing");
+    perror(RED "Failed writing" RESET);
     fclose(file);
     return 1;
 }
