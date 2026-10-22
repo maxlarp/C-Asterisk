@@ -6,14 +6,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include "../headers/tcolors.h"
+#include "tcolors.h"
 #include "dependencies/minifb/include/MiniFB.h"
 #include "dependencies/minifb/include/MiniFB_enums.h"
 #include "dependencies/minifb/include/MiniFB_types.h"
-#include "../headers/format.h"
+#include "format.h"
 
-// Read 4 next bytes and turn them into an int, Little Endian
-int32_t read_int_LE(FILE *file) {
+// Read 4 next bytes and turn them into an int, Big Endian
+int32_t read_int_BE(FILE *file) {
     uint8_t bytes[4];
 
     if (fread(bytes, sizeof(uint8_t), 4, file) != 4) {
@@ -26,7 +26,7 @@ int32_t read_int_LE(FILE *file) {
         (bytes[3]));
 }
 
-static inline void read_rgb(const uint8_t **p, uint8_t *r, uint8_t *g, uint8_t *b) {
+static inline void read_RGB(const uint8_t **p, uint8_t *r, uint8_t *g, uint8_t *b) {
     *r = *(*p)++;
     *g = *(*p)++;
     *b = *(*p)++;
@@ -52,8 +52,8 @@ bool metadata_from_file(FILE *file, uint32_t *out_height, uint32_t *out_width) {
         return false;
     }
     if (fgetc(file) == FMT_TAG_RESOLUTION) {
-        *out_width = read_int_LE(file);
-        *out_height = read_int_LE(file);
+        *out_width = read_int_BE(file);
+        *out_height = read_int_BE(file);
     } else {
         puts(RED "No resolution found!" RESET);
         return false;
@@ -65,8 +65,8 @@ static inline uint32_t pack_rgb(uint8_t r, uint8_t g, uint8_t b) {
     return ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
 }
 
-static inline uint32_t read_RLE(const uint8_t **p, uint8_t *r, uint8_t *g, uint8_t *b, uint32_t *length) {
-    read_rgb(p, r, g, b);
+static inline void read_RLE(const uint8_t **p, uint8_t *r, uint8_t *g, uint8_t *b, uint32_t *length) {
+    read_RGB(p, r, g, b);
     read_variable_length_quantity_int(p, length);
 }
 
@@ -100,7 +100,7 @@ void populate_buffer(FILE *file, uint32_t *buffer) {
         if (tag == FMT_TAG_PIXEL) {
             if (p + 3 <= end) {
                 uint8_t r, g, b;
-                read_rgb(&p, &r,&g, &b);
+                read_RGB(&p, &r,&g, &b);
 
                 buffer[pixel++] = pack_rgb(r, g, b);
             }

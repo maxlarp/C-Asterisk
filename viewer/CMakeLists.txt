@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(Encode VERSION 1.0 LANGUAGES C CXX)
+project(C-Asterisk VERSION 1.0 LANGUAGES C CXX)
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # minifb picks the X11 backend on Linux unless this option is already in the
 # cache. Seed it before add_subdirectory() so the default build talks Wayland.
@@ -13,6 +15,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT DEFINED MINIFB_USE_WAYLAND_API)
 endif()
 
 add_executable(main main.c)
+
+target_include_directories(main PRIVATE ../headers)
 
 add_subdirectory(dependencies/minifb)
 
