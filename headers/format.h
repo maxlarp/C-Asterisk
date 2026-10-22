@@ -7,8 +7,12 @@
 static const char FMT_MAGIC[] = "C*";
 
 enum {
-    FMT_TAG_RESOLUTION = 21,
-    FMT_TAG_PIXEL = 49
+    FMT_TAG_UNKNOWN    = 0,
+    FMT_TAG_RESOLUTION = 1,
+    FMT_TAG_PIXEL      = 2,
+    FMT_TAG_RLE        = 3,
+    FMT_TAG_ADVRLE     = 4,
+    FMT_TAG_ADVANCE    = 5
 };
 
 #endif

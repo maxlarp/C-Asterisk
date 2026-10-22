@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -10,17 +11,37 @@
 #include "../headers/format.h"
 
 // Read 4 next bytes and turn them into an int, Little Endian
-int32_t read_next_int_little_endian(FILE *fp) {
+int32_t read_next_int_little_endian(FILE *file) {
     uint8_t bytes[4];
 
-    if (fread(bytes, sizeof(uint8_t), 4, fp) != 4) {
+    if (fread(bytes, sizeof(uint8_t), 4, file) != 4) {
         return -1;
     }
 
-    return (int32_t)((bytes[3] << 24) |
-        (bytes[2] << 16) |
-        (bytes[1] << 8) |
-        (bytes[0]));
+    return (int32_t)((bytes[0] << 24) |
+        (bytes[1] << 16) |
+        (bytes[2] << 8) |
+        (bytes[3]));
+}
+
+static inline void read_rgb(const uint8_t **p, uint8_t *r, uint8_t *g, uint8_t *b) {
+    *r = *(*p)++;
+    *g = *(*p)++;
+    *b = *(*p)++;
+}
+
+static inline void read_variable_length_quantity_int(const uint8_t **p, uint32_t *out_number) {
+    uint8_t shift = 0;
+    uint8_t byte;
+
+    do {
+        // TODO: remove this debug
+        byte = *(*p)++;
+
+        *out_number |= ((uint32_t)(byte & 0x7F) << shift);
+
+        shift += 7;
+    } while (byte & 0x80);
 }
 
 bool metadata_from_file(FILE *file, uint32_t *out_height, uint32_t *out_width) {
@@ -36,22 +57,78 @@ bool metadata_from_file(FILE *file, uint32_t *out_height, uint32_t *out_width) {
         puts(RED "No resolution found!" RESET);
         return false;
     }
-    printf(GREEN "Detected resolution!\n%dx%d\n" RESET, *out_width, *out_height);
     return true;
 }
 
 void populate_buffer(FILE *file, uint32_t *buffer) {
-    char c;
-    int32_t pixel = 0;
-    while ((c = fgetc(file)) != EOF) {
-        if (c == FMT_TAG_PIXEL) {
-            int r = fgetc(file);
-            int g = fgetc(file);
-            int b = fgetc(file);
+    /* I didn't use the SEEK_SET (to put the pointer at the start of the file)
+     because it would report the size including the headers, which i want to avoid. */
+    long current_pos = ftell(file);
+    fseek(file, 0, SEEK_END);
+    long file_size = ftell(file);
 
-            buffer[pixel++] = (r << 16) | (g << 8) | b;
+    fseek(file, current_pos, SEEK_SET);
+
+    if (file_size <= 0) {
+        perror(RED "Error reading file" RESET);
+    }
+
+    uint8_t *raw_buffer = malloc(file_size);
+    if (raw_buffer == NULL) {
+        puts(RED "Error allocating memory" RESET);
+    }
+
+    size_t bytes_read = fread(raw_buffer, 1, file_size, file);
+
+    const uint8_t *p = raw_buffer;
+    uint8_t *end = raw_buffer + bytes_read;
+    int32_t pixel = 0;
+
+    while (p < end) {
+        uint8_t tag = *p++;
+
+        if (tag == FMT_TAG_PIXEL) {
+            if (p + 3 <= end) {
+                uint8_t r, g, b;
+                read_rgb(&p, &r,&g, &b);
+
+                buffer[pixel++] = (r << 16) | (g << 8) | b;
+            }
         }
-    };
+        else if (tag == FMT_TAG_RLE) {
+            uint8_t r, g, b;
+            read_rgb(&p, &r,&g, &b);
+
+            uint32_t length = 0;
+            read_variable_length_quantity_int(&p, &length);
+
+            uint32_t counter = 0;
+            while (counter != length) {
+                buffer[pixel+counter] = (r << 16) | (g << 8) | b;
+                counter++;
+            }
+        }
+        else if (tag == FMT_TAG_ADVRLE) {
+            uint8_t r, g, b;
+            read_rgb(&p, &r, &g, &b);
+
+            uint32_t length = 0;
+            read_variable_length_quantity_int(&p, &length);
+
+            uint32_t counter = 0;
+            while (counter != length) {
+                buffer[pixel++] = (r << 16) | (g << 8) | b;
+                counter++;
+            }
+        }
+        else if (tag == FMT_TAG_ADVANCE) {
+            uint32_t amount = 0;
+            read_variable_length_quantity_int(&p, &amount);
+            for (; amount > 0; amount--) {
+                pixel++;
+            }
+        }
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -59,7 +136,7 @@ int main(int argc, char* argv[]) {
         puts(RED "Expected one or more arguments!" RESET);
         return 1;
     }
-    FILE* file = fopen(argv[1], "r");
+    FILE *file = fopen(argv[1], "r");
 
     uint32_t height, width;
     if (metadata_from_file(file, &height, &width) == false) {
