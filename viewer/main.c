@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include "../headers/tcolors.h"
 #include "dependencies/minifb/include/MiniFB.h"
 #include "dependencies/minifb/include/MiniFB_enums.h"
 #include "dependencies/minifb/include/MiniFB_types.h"
@@ -25,17 +26,17 @@ int32_t read_next_int_little_endian(FILE *fp) {
 bool metadata_from_file(FILE *file, uint32_t *out_height, uint32_t *out_width) {
     char buf[FMT_MAGIC_LEN];
     if (fread(buf, sizeof(char), FMT_MAGIC_LEN, file) != 2 || memcmp(buf, FMT_MAGIC, FMT_MAGIC_LEN) != 0) {
-        puts("Magic header not found!");
+        puts(RED "Magic header not found!" RESET);
         return false;
     }
     if (fgetc(file) == FMT_TAG_RESOLUTION) {
         *out_width = read_next_int_little_endian(file);
         *out_height = read_next_int_little_endian(file);
     } else {
-        puts("No resolution found!");
+        puts(RED "No resolution found!" RESET);
         return false;
     }
-    printf("Detected resolution!\nWidth: %d, Height: %d\n", *out_width, *out_height);
+    printf(GREEN "Detected resolution!\n%dx%d\n" RESET, *out_width, *out_height);
     return true;
 }
 
@@ -55,7 +56,7 @@ void populate_buffer(FILE *file, uint32_t *buffer) {
 
 int main(int argc, char* argv[]) {
     if (argc == 1) {
-        puts("One or more arguments is required");
+        puts(RED "Expected one or more arguments!" RESET);
         return 1;
     }
     FILE* file = fopen(argv[1], "r");
